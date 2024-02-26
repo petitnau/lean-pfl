@@ -55,4 +55,9 @@ def cons_inst (e: AExpr δ' τ) (s: Inst δ δ'): Inst (τ::δ) δ' :=
     | Member.head => e
     | Member.tail v' => s _ v'
 
+def inst {π: List Ty} (p: HList (AExpr δ) π) : Inst (π ++ δ) δ :=
+  match π, p with
+  | [], _ => id_inst
+  | _, HList.cons p ps => cons_inst p (inst ps)
+
 notation:max e " [↦ " v " ] " => (inst_expr (cons_inst (AValue v) id_inst) e)

@@ -1,4 +1,11 @@
 import Dice.Ast
+import Data.HList
 
-def Env: Type := List Ty
-def Distribution (τ: Ty): Type := Value τ -> Rat
+abbrev Env: Type :=
+  List Ty
+
+def Distribution (τ: Ty): Type :=
+  Value τ -> Rat
+
+def Table (T: List (List Ty × Ty)) : Type :=
+  HList (λ(π,τ) => HList Value π -> Distribution τ) T

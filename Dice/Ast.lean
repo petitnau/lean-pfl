@@ -44,12 +44,11 @@ inductive Expr : List (List Ty × Ty) -> List Ty -> Ty -> Type where
   | Ifte    : AExpr δ 𝔹           -> Expr T δ τ         -> Expr T δ τ           -> Expr T δ τ
 open Expr
 
-inductive Function : List (List Ty × Ty) -> List Ty -> Ty -> Type where
-  | Function : Expr T [] τ -> Function T π τ
-open Function
+abbrev Function (T: List (List Ty × Ty)) (π: List Ty) (τ: Ty): Type
+  := Expr T π τ
 
 inductive Program : List (List Ty × Ty) -> Ty -> Type where
-  | Func       : Function T π τ -> Program ((π,τ)::T) τ -> Program T τ
+  | Func       : Function T π τ' -> Program ((π,τ')::T) τ -> Program T τ
   | Expression : Expr T [] τ    -> Program T τ
 open Program
 

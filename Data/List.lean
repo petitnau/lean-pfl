@@ -6,4 +6,7 @@ inductive Member : List α -> α -> Type
   | tail : Member bs a -> Member (b::bs) a
 deriving DecidableEq, BEq, Ord, Repr open Member
 
+@[simp]
+theorem app_nil (l: List α): l ++ [] = l := by simp
+
 end Member
