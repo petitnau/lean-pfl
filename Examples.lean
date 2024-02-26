@@ -1,4 +1,4 @@
-import Dice
+import Dice.Semantics
 open Var Ty Value AExpr Expr
 
 ------------
@@ -73,19 +73,19 @@ macro_rules
 -- EXAMPLES --
 --------------
 
-def dice_example1: Expr [] TBool := ⟪
+def diceExample1: Expr [] [] TBool := ⟪
   let (flip 0.3) in
   let (flip 0.8) in
   let (S Z || Z) in
   let (observe Z) in
   S S S Z⟫ₑ
-#eval (showd <| normalize <| sem_expr <| dice_example1) == {(VTrue, 15/43), (VFalse, 28/43)}
+#eval (toFinset <| normalize <| semExpr <| diceExample1) == {(VTrue, 15/43), (VFalse, 28/43)}
 
-def dice_example2: Expr [] TBool := ⟪
+def diceExample2: Expr [] [] TBool := ⟪
   let (flip 0.3) in
   let (flip 0.8) in
   let (Z, false) in
   let (S S Z, Z) in
   let (snd Z) in
   (fst Z)⟫ₑ
-#eval (showd <| normalize <| sem_expr <| dice_example2) == {(VTrue, 8/10), (VFalse, 2/10)}
+#eval (toFinset <| normalize <| semExpr <| diceExample2) == {(VTrue, 8/10), (VFalse, 2/10)}

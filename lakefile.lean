@@ -15,3 +15,5 @@ require assertCmd from git
 lean_lib Dice {
   -- add any library configuration options here
 }
+
+lean_lib Data {}
