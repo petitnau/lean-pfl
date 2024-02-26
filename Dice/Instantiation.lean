@@ -1,14 +1,14 @@
 import Dice.Ast
 import Dice.Env
 
-def Inst (δ δ': Env) := ∀τ, Var δ τ → AExpr δ' τ
-def Ren  (δ δ': Env) := ∀τ, Var δ τ → Var δ' τ
+def Inst (δ δ': Env) := ∀τ, Member δ τ → AExpr δ' τ
+def Ren  (δ δ': Env) := ∀τ, Member δ τ → Member δ' τ
 
-open Var Value AExpr Expr
+open Value AExpr Expr
 
 def ren_inst (τ: Ty) (r: Ren δ δ'): Ren (τ::δ) (τ::δ') := λ τ' => λ
-  | ZVar => ZVar
-  | SVar v' => SVar (r _ v')
+  | Member.head => Member.head
+  | Member.tail v' => Member.tail (r _ v')
 
 def ren_aexpr (r: Ren δ δ') : AExpr δ τ → AExpr δ' τ
   | AVar v => AVar (r _ v)
@@ -26,11 +26,11 @@ def ren_expr (r: Ren δ δ') : Expr T δ τ → Expr T δ' τ
   | Call v as => Call v (map (fun _ => ren_aexpr r) as)
 
 def shift_expr (δ: Env) (τ τ': Ty): AExpr δ τ -> AExpr (τ'::δ) τ :=
-  ren_aexpr (fun _ v => SVar v)
+  ren_aexpr (fun _ v => Member.tail v)
 
 def shift_inst (τ: Ty) (s: Inst δ δ'): Inst (τ::δ) (τ::δ') := λ τ' => λ
-  | ZVar => AVar ZVar
-  | SVar v' => shift_expr _ _ _  (s _ v')
+  | Member.head => AVar Member.head
+  | Member.tail v' => shift_expr _ _ _  (s _ v')
 
 def inst_aexpr (s: Inst δ δ') : AExpr δ τ → AExpr δ' τ
   | AVar v => s _ v
@@ -50,9 +50,9 @@ def inst_expr (s: Inst δ δ') : Expr T δ τ → Expr T δ' τ
 def id_inst : Inst δ δ := fun _ => AVar
 
 def cons_inst (e: AExpr δ' τ) (s: Inst δ δ'): Inst (τ::δ) δ' :=
-  fun τ' (v: Var (τ::δ) τ') =>
+  fun τ' (v: Member (τ::δ) τ') =>
     match v with
-    | ZVar => e
-    | SVar v' => s _ v'
+    | Member.head => e
+    | Member.tail v' => s _ v'
 
 notation:max e " [↦ " v " ] " => (inst_expr (cons_inst (AValue v) id_inst) e)

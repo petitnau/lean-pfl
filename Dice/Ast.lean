@@ -10,13 +10,9 @@ import Lean.Meta.AppBuilder
 import Lean.Expr
 import AssertCmd
 import Data.HList
+import Data.List
 
 open BigOperators
-
-inductive Var : List α -> α -> Type
-  | ZVar : Var (a::as) a
-  | SVar : Var bs a -> Var (b::bs) a
-deriving DecidableEq, BEq, Ord, Repr open Var
 
 inductive Ty where
   | TBool : Ty
@@ -32,7 +28,7 @@ inductive Value : Ty -> Type where
 deriving DecidableEq, BEq,  Repr open Value
 
 inductive AExpr : List Ty -> Ty -> Type where
-  | AVar   : Var δ τ -> AExpr δ τ
+  | AVar   : Member δ τ -> AExpr δ τ
   | AValue : Value τ -> AExpr δ τ
 deriving DecidableEq, BEq, Repr open AExpr
 
@@ -44,7 +40,7 @@ inductive Expr : List (List Ty × Ty) -> List Ty -> Ty -> Type where
   | Observe : AExpr δ 𝔹           -> Expr T δ 𝔹
   | Pair    : AExpr δ τ₁          -> AExpr δ τ₂         -> Expr T δ (τ₁ :×: τ₂)
   | Let     : Expr T δ τ₁         -> Expr T (τ₁::δ) τ₂  -> Expr T δ τ₂
-  | Call    : Var T (π, τ)        -> HList (AExpr δ) π  -> Expr T δ τ
+  | Call    : Member T (π, τ)     -> HList (AExpr δ) π  -> Expr T δ τ
   | Ifte    : AExpr δ 𝔹           -> Expr T δ τ         -> Expr T δ τ           -> Expr T δ τ
 open Expr
 

@@ -1,5 +1,5 @@
 import Dice.Semantics
-open Var Ty Value AExpr Expr
+open Ty Value AExpr Expr
 
 ------------
 -- SYNTAX --
@@ -11,8 +11,8 @@ syntax "Z" : index
 syntax "S" index : index
 syntax " ⟪ " index " ⟫ᵢ " : term
 macro_rules
-  | `(⟪ Z ⟫ᵢ)           => `(ZVar)
-  | `(⟪ S $i:index ⟫ᵢ)  => `(SVar (⟪ $i ⟫ᵢ))
+  | `(⟪ Z ⟫ᵢ)           => `(Member.head)
+  | `(⟪ S $i:index ⟫ᵢ)  => `(Member.tail (⟪ $i ⟫ᵢ))
 
 -- Values
 declare_syntax_cat value

@@ -17,7 +17,7 @@ def semAExpr : AExpr [] τ -> Distribution τ
 
 notation:max " 〚 " e " 〛 " => semExpr e
 notation:max " 〚 " e " 〛( " v " ) " => semExpr e v
-def semExpr : Expr [] [] τ -> Distribution τ
+def semExpr : Expr T [] τ -> Distribution τ
   | Atomic (AValue v1) =>
     〚v1〛ᵥ
 
@@ -45,6 +45,8 @@ def semExpr : Expr [] [] τ -> Distribution τ
 
   | Let e1 e2  => λv =>
     ∑ v', 〚e1〛(v') * 〚e2[↦ v']〛(v)
+
+  | Call f as => λv => 0
 
 termination_by e => size e
 decreasing_by all_goals (simp_wf; (conv => rhs; unfold size); linarith)
