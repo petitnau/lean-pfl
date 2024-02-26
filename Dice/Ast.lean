@@ -47,9 +47,9 @@ open Expr
 abbrev Function (T: List (List Ty × Ty)) (π: List Ty) (τ: Ty): Type
   := Expr T π τ
 
-inductive Program : List (List Ty × Ty) -> Ty -> Type where
-  | Func       : Function T π τ' -> Program ((π,τ')::T) τ -> Program T τ
-  | Expression : Expr T [] τ    -> Program T τ
+inductive Program : List (List Ty × Ty) -> List (List Ty × Ty) -> Ty -> Type where
+  | Func       : Function ((π,τ')::T) π τ' -> Program ((π,τ')::T) D τ -> Program T ((π,τ')::D) τ
+  | Expression : Expr T [] τ    -> Program T [] τ
 open Program
 
 -- Values of any type are finite

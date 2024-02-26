@@ -13,3 +13,7 @@ def map {α : Type v} {β : α -> Type u} {γ : α -> Type u} {is : List α}  (f
 def HList.get : HList β is → Member is i → β i
   | cons a _, Member.head => a
   | cons _ as, Member.tail h => as.get h
+
+def HList.app : HList β is -> HList β is' -> HList β (is ++ is')
+  | .nil, ys => ys
+  | .cons x xs, ys => .cons x (app xs ys)

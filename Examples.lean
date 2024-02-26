@@ -94,24 +94,24 @@ macro_rules
 -- EXAMPLES --
 --------------
 
-def diceExample1': Program [] TBool := ⟪
+def diceExample1': Program [] [] TBool := ⟪
   let (flip 0.3) in
   let (flip 0.8) in
   let (S Z || Z) in
   let (observe Z) in
   S S S Z⟫ₚ
-#eval (toFinset <| normalize <| semProgram' <| diceExample1') == {(VTrue, 15/43), (VFalse, 28/43)}
+#eval (toFinset <| normalize <| semProgram' .nil <| diceExample1') == {(VTrue, 15/43), (VFalse, 28/43)}
 
-def diceExample2: Program [] TBool := ⟪
+def diceExample2: Program [] [] TBool := ⟪
   let (flip 0.3) in
   let (flip 0.8) in
   let (Z, false) in
   let (S S Z, Z) in
   let (snd Z) in
   (fst Z)⟫ₚ
-#eval (toFinset <| normalize <| semProgram' <| diceExample2) == {(VTrue, 8/10), (VFalse, 2/10)}
+#eval (toFinset <| normalize <| semProgram' .nil <| diceExample2) == {(VTrue, 8/10), (VFalse, 2/10)}
 
-def diceExample3: Program [] (TBool :×: TBool) := ⟪
+def diceExample3: Program [] [([TBool], TBool)] (TBool :×: TBool) := ⟪
   fun (Bool): Bool {
     let (!Z) in
     let (flip 0.5) in
@@ -121,4 +121,37 @@ def diceExample3: Program [] (TBool :×: TBool) := ⟪
   let [Z](false) in
   (Z, S Z)
   ⟫ₚ
-#eval (toFinset <| normalize <| semProgram' <| diceExample3)
+#eval (toFinset <| normalize <| semProgram' (HList.cons (fun _ _ => 0) HList.nil) <| diceExample3)
+
+def diceExample4: Program [] [([TBool], TBool)] TBool := ⟪
+  fun (Bool): Bool {
+    if Z then Z
+    else (
+      let (flip 0.5) in
+      [Z](Z)
+    )
+  }
+  let (flip 0.5) in
+  [Z](Z)⟫ₚ
+def I4: Table [([TBool], TBool)] := HList.cons (fun _ v => match v with | VTrue => 1 | VFalse => 0) HList.nil
+#eval (toFinset <| normalize <| semProgram' I4 <| diceExample4)
+
+def diceExample5: Program [] [([TBool], TBool)] TBool := ⟪
+  fun (Bool): Bool {
+    let (flip 0.5) in
+    if Z then S Z
+    else (
+      let (flip 0.5) in
+      let (S S Z || Z) in
+      [Z](Z)
+    )
+  }
+  [Z](false)⟫ₚ
+def I5: Table [([TBool], TBool)] := HList.cons (fun xs v =>
+  let (HList.cons x HList.nil) := xs
+  match x, v with
+  | VTrue, VTrue => 1
+  | VTrue, VFalse => 0
+  | VFalse, VTrue => 1/3
+  | VFalse, VFalse => 2/3) HList.nil
+#eval (toFinset <| normalize <| semProgram' I5 <| diceExample5)

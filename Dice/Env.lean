@@ -7,5 +7,5 @@ abbrev Env: Type :=
 def Distribution (τ: Ty): Type :=
   Value τ -> Rat
 
-def Table (T: List (List Ty × Ty)) : Type :=
+abbrev Table (T: List (List Ty × Ty)) : Type :=
   HList (λ(π,τ) => HList Value π -> Distribution τ) T

@@ -53,20 +53,23 @@ def semExpr (T: Table ρ) : Expr ρ [] τ -> Distribution τ
 termination_by e => size e
 decreasing_by all_goals (simp_wf; (conv => rhs; unfold size); linarith)
 
-def semFunc {π: List Ty} (T: Table ρ) : Function ρ π τ -> (HList Value π -> Distribution τ) :=
-  fun (e : Expr ρ π τ) => fun vs =>
+def semFunc {π: List Ty} {τ: Ty} {ρ: List (List Ty × Ty)} (I: HList Value π -> Distribution τ) (T: Table ρ) : Function ((π,τ)::ρ) π τ -> (HList Value π -> Distribution τ) :=
+  fun e vs =>
     let as := (map (fun _ v => AValue v) vs)
-    semExpr T (inst_expr (inst as) (cast (by simp) e))
+    let T' := @HList.cons _ _ (π,τ) ρ I T
+    semExpr T' (inst_expr (inst as) (cast (by simp) e))
 
-def semProgram (T: Table ρ) : Program ρ τ -> Distribution τ
+def semProgram (Is: Table ρ') (T: Table ρ) : Program ρ ρ' τ -> Distribution τ
   | Expression e => semExpr T e
   | Func f e =>
-    let Te := semFunc T f
-    let T' := HList.cons Te T
-    semProgram T' e
+    match Is with
+    | @HList.cons _ _ (π', τ') _ I Is' =>
+      let Te := semFunc I T f
+      let T' := @HList.cons _ _ (π', τ') ρ Te T
+      semProgram Is' T' e
 
-def semProgram' : Program [] τ -> Distribution τ :=
-  semProgram HList.nil
+def semProgram' (Is: Table ρ') : Program [] ρ' τ -> Distribution τ :=
+  semProgram Is HList.nil
 
 def toFinset (f: Distribution τ): Finset (Value τ × Rat) :=
   Finset.univ.image (fun x => (x, f x))
