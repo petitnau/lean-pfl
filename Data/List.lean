@@ -1,12 +1,12 @@
 
 section Member
 
-inductive Member : List α -> α -> Type
-  | head : Member (a::as) a
-  | tail : Member bs a -> Member (b::bs) a
+inductive Member : α -> List α -> Type
+  | head {a as}   : Member a (a::as)
+  | tail {a b bs} : Member a bs -> Member a (b::bs)
 deriving DecidableEq, BEq, Ord, Repr open Member
 
 @[simp]
-theorem app_nil (l: List α): l ++ [] = l := by simp
+theorem list_app_nil (l: List α): l ++ [] = l := by simp
 
 end Member
