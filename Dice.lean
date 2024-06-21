@@ -2,6 +2,7 @@ import Dice.Semantics
 import Data.HList
 import Data.KFinset
 open Ty Value AExpr Expr Program
+open Std
 
 ------------------
 -- OTHER MACROS --
@@ -9,8 +10,9 @@ open Ty Value AExpr Expr Program
 syntax "prob " term : term
 syntax "prob 0" : term
 macro_rules
+| `(prob 1) => `((1: Probability))
 | `(prob $t) => `(Probability.fromRealPos (($t): ℚ) (by norm_num))
-| `(prob 0) => `(Probability.fromRealZero 0 (by norm_num))
+| `(prob 0) => `((0: Probability))
 
 ------------
 -- SYNTAX --
@@ -48,6 +50,14 @@ macro_rules
   | `(⟪ $v:value ⟫ₐ)      => `(AValue ⟪ $v ⟫ᵥ)
   | `(⟪ $i:index ⟫ₐ)      => `(AVar ⟪ $i ⟫ᵢ)
   | `(⟪ ( $a:aexpr ) ⟫ₐ)  => `(⟪ $a ⟫ₐ)
+declare_syntax_cat aexprs
+
+syntax  aexpr : aexprs
+syntax  aexpr ", " aexprs : aexprs
+syntax " ⟪ " aexprs " ⟫ₐₛ " : term
+macro_rules
+  | `(⟪ $a:aexpr ⟫ₐₛ)  => `(HList.cons ⟪ $a ⟫ₐ HList.nil )
+  | `(⟪ $a:aexpr ,  $as:aexprs ⟫ₐₛ)  => `(HList.cons ⟪ $a ⟫ₐ ⟪ $as ⟫ₐₛ)
 
 -- Expressions
 declare_syntax_cat expr
@@ -60,7 +70,8 @@ syntax " let " expr " in " expr : expr
 syntax " flip " scientific : expr
 syntax " if " aexpr " then " expr " else " expr : expr
 syntax " observe " aexpr : expr
-syntax " [ " index " ]( " aexpr " )" : expr
+syntax " [ " index " ](" ")" : expr
+syntax " [ " index " ]( " aexprs " )" : expr
 syntax " ( "  expr " ) " : expr
 syntax " ⟪ "  expr " ⟫ₑ " : term
 macro_rules
@@ -71,7 +82,8 @@ macro_rules
   | `(⟪ flip $n:scientific ⟫ₑ)        => `(Flip (FlipProb.fromRat $n (by norm_num)))
   | `(⟪ if $a:aexpr then $e1:expr else $e2:expr ⟫ₑ) => `(Ifte ⟪ $a ⟫ₐ ⟪ $e1 ⟫ₑ ⟪ $e2 ⟫ₑ)
   | `(⟪ observe $a:aexpr ⟫ₑ)          => `(Observe ⟪ $a ⟫ₐ)
-  | `(⟪ [ $i:index ]( $a:aexpr ) ⟫ₑ)  => `(Call ⟪ $i ⟫ᵢ (HList.cons ⟪ $a ⟫ₐ HList.nil))
+  | `(⟪ [ $i:index ]( ) ⟫ₑ)           => `(Call ⟪ $i ⟫ᵢ [])
+  | `(⟪ [ $i:index ]( $as:aexprs ) ⟫ₑ)=> `(Call ⟪ $i ⟫ᵢ ⟪ $as ⟫ₐₛ)
   | `(⟪ $v:value ⟫ₑ)                  => `(Atomic (AValue ⟪ $v ⟫ᵥ))
   | `(⟪ $a:aexpr ⟫ₑ)                  => `(Atomic ⟪ $a ⟫ₐ)
   | `(⟪ ( $e:expr ) ⟫ₑ)               => `(⟪ $e ⟫ₑ)
@@ -90,7 +102,7 @@ declare_syntax_cat funct
 syntax " fun " " (Bool): " " Bool " " { " expr " } ": funct
 syntax " ⟪ "  funct " ⟫f " : term
 macro_rules
-  | `(⟪ fun (Bool): Bool { $e:expr }⟫f) => `((⟪ $e ⟫ₑ : Function _ [TBool] TBool))
+  | `(⟪ fun (Bool): Bool { $e:expr }⟫f) => `((⟪ $e ⟫ₑ : Func _ [TBool] TBool))
 
 -- Program
 declare_syntax_cat prog
@@ -98,8 +110,8 @@ syntax expr : prog
 syntax funct prog : prog
 syntax " ⟪ "  prog " ⟫ₚ " : term
 macro_rules
-  | `(⟪ $f:funct $p:prog ⟫ₚ) => `(Func ⟪ $f ⟫f ⟪ $p ⟫ₚ)
-  | `(⟪ $e:expr ⟫ₚ) => `(Expression ⟪ $e ⟫ₑ)
+  | `(⟪ $f:funct $p:prog ⟫ₚ) => `(PFunc ⟪ $f ⟫f ⟪ $p ⟫ₚ)
+  | `(⟪ $e:expr ⟫ₚ) => `(PExpr ⟪ $e ⟫ₑ)
 
 --------------
 -- EXAMPLES --
@@ -107,24 +119,15 @@ macro_rules
 
 open Classical
 
-def diceExample1': Program [] [] TBool := ⟪
+def diceExample1: Program 𝔹 [] [] := ⟪
   let (flip 0.3) in
   let (flip 0.8) in
   let (S Z || Z) in
   let (observe Z) in
   S S S Z⟫ₚ
-#eval (toFinset <| normProb <| semProgramC' .nil <| diceExample1')
+-- #eval (toFinset <| normProb <| semProgramC' .nil <| diceExample1)
 
--- def diceExample2: Program [] [] TBool := ⟪
---   let (flip 0.3) in
---   let (flip 0.8) in
---   let (Z, false) in
---   let (S S Z, Z) in
---   let (snd Z) in
---   (fst Z)⟫ₚ
--- #eval (toFinset <| normProb <| semProgram' .nil <| diceExample2)
-
-def diceExample3: Program [] [([TBool], TBool)] (TBool :×: TBool) := ⟪
+def diceExample3: Program (𝔹 :×: 𝔹) [] [([𝔹], 𝔹)] := ⟪
   fun (Bool): Bool {
     let (!Z) in
     let (flip 0.5) in
@@ -133,11 +136,15 @@ def diceExample3: Program [] [([TBool], TBool)] (TBool :×: TBool) := ⟪
   let [Z](true) in
   let [Z](false) in
   (Z, S Z)
-  ⟫ₚ
-def I3: Table [([TBool], TBool)] := (fun _ _ => 0)::[]
-#eval (toFinset <| normProb <| semProgramC' I3 <| diceExample3)
+⟫ₚ
+def I3: Table [([𝔹], 𝔹)] := (fun _ _ => prob 1/2)::[]
+-- #eval (toFinset <| normProb <| semProgramC' I3 <| diceExample3)
+def test: Expr (.cons (.cons 𝔹 .nil, 𝔹) .nil) [𝔹] 𝔹 := ⟪
+  let (!Z) in
+  let (flip 0.5) in
+  if Z then S Z else S S Z⟫ₑ  
 
-def diceExample4: Program [] [([TBool], TBool)] TBool := ⟪
+def diceExample4: Program 𝔹 [] [([𝔹], 𝔹)] := ⟪
   fun (Bool): Bool {
     if Z then Z
     else (
@@ -147,12 +154,12 @@ def diceExample4: Program [] [([TBool], TBool)] TBool := ⟪
   }
   let (flip 0.5) in
   [Z](Z)⟫ₚ
-def I4: Table [([TBool], TBool)] := (fun
+def I4: Table [([𝔹], 𝔹)] := (fun
   | _, VTrue  => 1
   | _, VFalse => 0)::[]
-#eval (toFinset <| normProb <| semProgramC' I4 <| diceExample4)
+-- #eval (toFinset <| normProb <| semProgramC' I4 <| diceExample4)
 
-def diceExample5: Program [] [([TBool], TBool)] TBool := ⟪
+def diceExample5: Program 𝔹 [] [([𝔹], 𝔹)] := ⟪
   fun (Bool): Bool {
     let (flip 0.5) in
     if Z then S Z
@@ -163,45 +170,22 @@ def diceExample5: Program [] [([TBool], TBool)] TBool := ⟪
     )
   }
   [Z](false)⟫ₚ
-def I5: Table [([TBool], TBool)] := (fun
+def I5: Table [([𝔹], 𝔹)] := (fun
   | VTrue::[],  VTrue  => prob 1
   | VTrue::[],  VFalse => prob 0
   | VFalse::[], VTrue  => prob 1/3
   | VFalse::[], VFalse => prob 2/3)::[]
-#eval (toFinset <| normProb <| semProgramC' I5 <| diceExample5)
-/-
+-- #eval (toFinset <| normProb <| semProgramC' I5 <| diceExample5)
 
-def Program.f : Program ρ (List.cons (π,τ) ρ') τ' -> Function (List.cons (π,τ) ρ) π τ
-  | Func f _ => f
-
-def Program.p : Program ρ (List.cons (π,τ) ρ') τ' -> Program (List.cons (π,τ) ρ) ρ' τ'
-  | Func _ p' => p'
-
-def Program.e : Program ρ [] τ -> Expr ρ [] τ
-  | Expression e => e
-
-def I4R1: FInvariant (diceExample4.p) I4 (HList.nil)  :=
-  FInvariant.nil
-
-def I4R2: FInvariant diceExample4 (HList.nil) I4 :=
-  sorry
-
-#check
-  @FInvariant.cons TBool ([TBool], TBool) [] []
-  diceExample4.p
-  (fun
-    | _, VTrue  => 1
-    | _, VFalse => 0) HList.nil HList.nil diceExample4.f I4R1
-  (by
-    unfold f diceExample4; simp
-    unfold Invariant charf; simp
-    intro v1 v2; simp
-    repeat (unfold inst_expr inst_aexpr inst; simp)
-    unfold semExpr; simp
-    unfold semExpr; simp;
-    aesop; sorry)
-    -/
-
--- HList.nil ((fun
---  | _, VTrue  => 1
---  | _, VFalse => 0)) HList.nil (diceExample4.f) FInvariant.nil (by simp)
+def diceExample6: Program 𝔹 [] [([𝔹], 𝔹)] := ⟪
+  fun (Bool): Bool {
+    let (flip 0.5) in
+    let (observe Z) in
+    if S Z then [Z](false) else false
+  }
+  [Z](false)⟫ₚ
+def I6: Table [([𝔹], 𝔹)] := (fun
+  | VTrue::[],  VTrue  => prob 0
+  | VTrue::[],  VFalse => prob 0
+  | VFalse::[], VTrue  => prob 0
+  | VFalse::[], VFalse => prob 0)::[]

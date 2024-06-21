@@ -8,11 +8,9 @@ package «dice-lean» {
 require mathlib from git
   "https://github.com/leanprover-community/mathlib4.git"
 
-require assertCmd from git
-  "https://github.com/pnwamk/lean4-assert-command.git"
 
 -- require LeanCopilot from git
---   "https://github.com/lean-dojo/LeanCopilot.git" @ "v1.1.1"
+--   "https://github.com/lean-dojo/LeanCopilot.git" @ "v1.2.2"
 
 
 @[default_target]
