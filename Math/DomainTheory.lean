@@ -56,6 +56,12 @@ theorem Monotonee.chain [Preorder α] {f: α →o α} : f a ≤ a ∨ a ≤ f a 
     . left; rw [← xh, ← yh]; exact Monotone.f_le h1 h;
     . right; simp_all; rw [← xh, ← yh]; exact Monotone.f_le h1 h.le;
 
+theorem Monotonee.paral [CompleteLattice α] (f: α →o α) : a ≤ b → f^[n] a ≤ f^[n] b := by
+  intro h;
+  induction n
+  simp_all; simp_all [Function.iterate_succ_apply'];
+  apply f.monotone'; assumption
+
 @[simp]
 theorem Set.comprehension_nonempty {α: Type} [h: Nonempty α] (f: α -> β): {f x | x : α}.Nonempty := by
   have ⟨a⟩ := h; existsi (f a); existsi a; simp_all

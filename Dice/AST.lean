@@ -66,6 +66,10 @@ inductive Program (τ: Ty) : [Sig]' -> [Sig]' -> Type where
   | PExpr : Expr Γ [] τ  -> Program τ Γ []
 open Program
 
+def Program.expr : Program τ Γ Γ' -> Expr (List.sreverse Γ' ++ Γ) [] τ
+  | PFunc f p => cast (by congr 1; rw [List.sreverse_cons_app]) (Program.expr p)
+  | PExpr e => e
+
 -----------------
 -- DESTRUCTORS --
 -----------------

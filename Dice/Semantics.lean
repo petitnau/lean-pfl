@@ -136,6 +136,17 @@ theorem functionCharacteristic_monotone
     simp_all
     apply semExpr_monotone_invariant _ _ _ hM
 
+theorem functionCharacteristic_monotone'
+  {π: [Ty]'} {τ: Ty} {ρ: [Sig]'} (f: Func ρ π τ)
+  : Monotone (Φ[·,f])
+  := by
+    intro I1 I2 hM
+    unfold functionCharacteristic;
+    intro i v;
+    simp_all
+    apply semExpr_monotone_table
+    rw [Table.le_cons_ext]; simp_all
+
 ------
 
 theorem semExpr_scott_table (e: Expr Γ π τ) (S: Inst π [])
@@ -304,6 +315,45 @@ noncomputable def semProgram {ρ': [Sig]'} (T: Table ρ): Program τ ρ ρ' -> �
 noncomputable def semProgram' : Program τ [] ρ -> 𝔻(τ) :=
   semProgram HList.nil
 
+theorem semFunc_monotone_table
+  : Monotone (fun T => semFunc T f)
+  := by
+    intro t1 t2 h
+    simp_all; unfold semFunc; rw [← lowerb, ← lowerb]
+    apply sSup_le; intro b bB; simp_all
+    have ⟨bB1, bB2⟩ := bB
+    rw [← bB2]; clear bB2
+    have : (Φ[t2,f]^[bB1] ⊥) ∈ {x | ∃ n, Φ[t2,f]^[n] ⊥ = x} := by aesop
+    apply le_sSup_of_le this
+    induction' bB1 with n ih
+    . simp_all
+    . simp_all [Function.iterate_succ_apply'];
+      calc
+        Φ[t1,f](Φ[t1,f]^[n] ⊥)
+        _ ≤ Φ[t2,f](Φ[t1,f]^[n] ⊥) := (functionCharacteristic_monotone' f h) (Φ[t1,f]^[n] ⊥)
+        _ ≤ Φ[t2,f](Φ[t2,f]^[n] ⊥) := (functionCharacteristic_monotone f t2 ih)
+    exact functionCharacteristic_scott f t2
+    exact functionCharacteristic_scott f t1
+
+theorem semProgram_monotone_table
+  : Monotone (fun T => semProgram T p)
+  := by
+    induction p with
+    | @PFunc _ π' τ' _ f p ih =>
+      unfold semProgram; simp_all;
+      intro t1 t2 tlet; simp_all
+      let t1' := (HList.cons' (π',τ') (semFunc t1 f) t1)
+      let t2' := (HList.cons' (π',τ') (semFunc t2 f) t2)
+      have := @ih t1' t2'
+      simp at this
+      have : t1' ≤ t2' := by rw [Table.le_cons_ext]; simp_all; apply semFunc_monotone_table tlet
+      have := ih this
+      simp_all
+    | PExpr e =>
+      have : e = e[↦ id_inst] := by simp
+      rw [this]
+      unfold semProgram; exact semExpr_monotone_table e id_inst
+
 --------------------------
 -- COMPUTABLE EXTENSION --
 --------------------------
@@ -328,13 +378,24 @@ def normFact (f: 𝔻(τ)): DReal :=
 def normProb (f: 𝔻(τ)): 𝔻(τ) :=
   fun x => (f x).divD (normFact f)
 
-def Invariant (I: Value[π]ₕ → 𝔻(τ)) (T: Table ρ) (f: Func ρ π τ)
+def SuperInvariant (I: Value[π]ₕ → 𝔻(τ)) (T: Table ρ) (f: Func ρ π τ)
   : Prop := functionCharacteristic f T I ≤ I
 
-inductive FInvariant {τ: Ty} : Program τ ρ ρ' -> Table ρ -> Table ρ' -> Type where
-  | nil    : FInvariant (PExpr e) T []
-  | cons f : FInvariant p (i ::ₕ T) I -> Invariant i T f
-          -> FInvariant (PFunc f (cast (by simp only [Prod.mk.eta]) p)) T (i ::ₕ I)
+def LowerBound (I: Value[π]ₕ → 𝔻(τ)) (T: Table ρ) (f: Func ρ π τ)
+  : Prop := I ≤ semFunc T f
+
+def UpperBound (I: Value[π]ₕ → 𝔻(τ)) (T: Table ρ) (f: Func ρ π τ)
+  : Prop := semFunc T f ≤ I
+
+inductive FLInvariant {τ: Ty} : Program τ ρ ρ' -> Table ρ -> Table ρ' -> Type where
+  | nil    : FLInvariant (PExpr e) T []
+  | cons f : FLInvariant p (i ::ₕ T) I -> LowerBound i T f
+          -> FLInvariant (PFunc f (cast (by simp only [Prod.mk.eta]) p)) T (i ::ₕ I)
+
+inductive FUInvariant {τ: Ty} : Program τ ρ ρ' -> Table ρ -> Table ρ' -> Type where
+  | nil    : FUInvariant (PExpr e) T []
+  | cons f : FUInvariant p (i ::ₕ T) I -> UpperBound i T f
+          -> FUInvariant (PFunc f (cast (by simp only [Prod.mk.eta]) p)) T (i ::ₕ I)
 
 theorem semFunc_supI : Φ[T,f](I) ≤ I -> semFunc T f ≤ I := by
   intro h; apply OrderHom.lfp_le; simp_all
@@ -343,9 +404,9 @@ theorem semFunc_supI : Φ[T,f](I) ≤ I -> semFunc T f ≤ I := by
 theorem semExpr_cast {h1: a = b} {h2: Expr a [] τ = Expr b [] τ} : semExpr (HList.cast T h1) (cast h2 e) = semExpr T e
   := by aesop
 
-theorem semProgram_supI
+theorem semProgram_supB
   {I: Table ρ'} {TC: Table ρ} {TN: Table ρ} {p: Program τ ρ ρ'}
-  : FInvariant p TC I -> TN ≤ TC -> semProgram TN p ≤ semProgramC I TC p := by
+  : FUInvariant p TC I -> TN ≤ TC -> semProgram TN p ≤ semProgramC I TC p := by
     induction p with
     | PExpr e =>
       intro _ h2;
@@ -356,31 +417,68 @@ theorem semProgram_supI
     | PFunc f p' ih =>
       rename_i ρ π τ ρ'
       intro h1 h2;
-      rw [Pi.le_def]; intro v; rw [Probability.le_ext, DReal.le_ext]
-      unfold semProgram semProgramC; simp_all
-      cases I with | cons i is =>
-        let _TC' := @HList.cons _ _ (π,τ) ρ i TC
-        cases h1 with
-        | cons f' fis fi =>
-          rename_i X Y Z i B
-          unfold Invariant at fi
-          simp_all
-          let TN' := HList.cons (semFunc TN f') TN
-          simp_all;
-          have le1: (@HList.cons _ _ Z ρ i TN) ≤ (@HList.cons _ _ Z ρ i TC) := by
-            unfold_projs; unfold Table.le; aesop
-          have : functionCharacteristic f' TN i ≤ functionCharacteristic f' TC i := by
-            unfold functionCharacteristic; intro vs v; simp_all
-            exact semExpr_monotone_table f' (inst'' vs) le1 v
-          have : functionCharacteristic f' TN i ≤ i := le_trans this fi
-          have : semFunc TN f' ≤ i := by simp_all [semFunc_supI]
-          have : TN' ≤ _TC' := by unfold_projs; unfold Table.le; aesop
-          apply ih <;> aesop
+      have : semProgram TN (PFunc f p') = semProgram (HList.cons' (π,τ) (semFunc TN f) TN) p' := by
+        (conv_lhs => unfold semProgram)
+      cases' I with _ _ i is
+      calc
+        semProgram TN (PFunc f p')
+        _ = semProgram (HList.cons' (π,τ) (semFunc TN f) TN) p' := by conv_lhs => unfold semProgram
+        _ ≤ semProgram (HList.cons' (π,τ) i TN) p' := by
+            cases' h1 with _ _ _ πτ E F p' i _ _ f' FUI UB
+            unfold UpperBound at UB; simp_all;
+            apply semProgram_monotone_table; rw [Table.le_cons_ext]
+            have : semFunc TN f' ≤ semFunc TC f' := semFunc_monotone_table h2
+            simp_all; exact le_trans this UB
+        _ ≤ semProgramC is (HList.cons' (π,τ) i TC) p' := by
+            cases' h1 with _ _ _ πτ E F p' i _ _ f' FUI UB
+            apply ih;
+            . simp_all; exact FUI;
+            . rw [Table.le_cons_ext]; simp_all;
+        _ = semProgramC (HList.cons' (π,τ) i is) TC (PFunc f p') := by
+            conv_rhs => unfold semProgramC
 
-theorem semProgram_supI' {I: Table ρ'} {p: Program τ [] ρ'}
-  : FInvariant p [] I -> semProgram' p ≤ semProgramC' I p := by
+theorem semProgram_lowB
+  {I: Table ρ'} {TC: Table ρ} {TN: Table ρ} {p: Program τ ρ ρ'}
+  : FLInvariant p TC I -> TC ≤ TN -> semProgramC I TC p ≤ semProgram TN p := by
+    induction p with
+    | PExpr e =>
+      intro _ h2;
+      unfold semProgram semProgramC;
+      rw [Pi.le_def]; intro v; rw [Probability.le_ext, DReal.le_ext]
+      have := semExpr_monotone_table e id_inst h2 v
+      simp at this; assumption
+    | PFunc f p' ih =>
+      rename_i ρ π τ ρ'
+      intro h1 h2;
+      have : semProgram TN (PFunc f p') = semProgram (HList.cons' (π,τ) (semFunc TN f) TN) p' := by
+        (conv_lhs => unfold semProgram)
+      cases' I with _ _ i is
+      calc
+        semProgramC (HList.cons' (π,τ) i is) TC (PFunc f p')
+        _ = semProgramC is (HList.cons' (π,τ) i TC) p' := by
+            conv_lhs => unfold semProgramC;
+        _ ≤ semProgram (HList.cons' (π,τ) i TN) p' := by
+            cases' h1 with _ _ _ πτ E F p' i _ _ f' FUI LB
+            apply ih;
+            . simp_all; exact FUI;
+            . rw [Table.le_cons_ext]; simp_all;
+        _ ≤ semProgram (HList.cons' (π,τ) (semFunc TN f) TN) p' := by
+            cases' h1 with _ _ _ πτ E F p' i _ _ f' FUI LB
+            unfold LowerBound at LB; simp_all;
+            apply semProgram_monotone_table; rw [Table.le_cons_ext]
+            have : semFunc TC f' ≤ semFunc TN f' := semFunc_monotone_table h2
+            simp_all; exact le_trans LB this
+        _ = semProgram TN (PFunc f p') := by conv_rhs => unfold semProgram
+
+theorem semProgram_supB' {I: Table ρ'} {p: Program τ [] ρ'}
+  : FUInvariant p [] I -> semProgram' p ≤ semProgramC' I p := by
     unfold semProgram' semProgramC';
-    intro h; apply semProgram_supI; exact h; simp
+    intro h; apply semProgram_supB; exact h; simp
+
+theorem semProgram_lowB' {I: Table ρ'} {p: Program τ [] ρ'}
+  : FLInvariant p [] I -> semProgramC' I p ≤ semProgram' p:= by
+    unfold semProgram' semProgramC';
+    intro h; apply semProgram_lowB; exact h; simp
 
 theorem search_lowerbound (T: Table ρ) (f: Func ρ π τ): Φ[T,f]^[n] 0 ≤ semFunc T f := by
   let cfun : (Value[π]ₕ → 𝔻(τ)) →o (Value[π]ₕ → 𝔻(τ)) := ⟨Φ[T,f], functionCharacteristic_monotone f T⟩
