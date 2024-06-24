@@ -36,8 +36,12 @@ def shift_inst {τ: Ty} (s: Inst π π'): Inst (τ::π) (τ::π') := λ_ => λ
   | Member.tail v' => shift_expr (s _ v')
 
 def inst_aexpr (s: Inst π π') : AExpr π τ → AExpr π' τ
-  | AVar v => s _ v
+  | AVar i => s _ i
   | AValue v => AValue v
+
+def inst_aexpr_value (s: Inst π []) : AExpr π τ → Value τ
+  | AVar i => (s _ i).value
+  | AValue v => v
 
 def inst_expr (s: Inst π π') : Expr Γ π τ → Expr Γ π' τ
   | Atomic a => Atomic (inst_aexpr s a)
@@ -67,13 +71,17 @@ def inst' (p: (Value)[π]ₕ) : Inst (π ++ π') π' :=
 def inst'' (p: (Value)[π]ₕ) : Inst π [] :=
   cast (by simp) (@inst' π [] p)
 
-theorem sub_full (idx: τ ∈ₗ π) (s: Inst π []) : ∃v, s _ idx = AValue v := by
-  cases s _ idx with
-  | AVar m => cases m;
-  | AValue v => exact ⟨v, rfl⟩
+def inst_value (idx: τ ∈ₗ π) (s: Inst π []):  Value τ :=
+  match s _ idx with
+  | AVar m => nomatch m
+  | AValue v => v
 
-theorem inst_aexpr_full (a: AExpr π τ) (s: Inst π []) : ∃v, inst_aexpr s a = AValue v := by
-  unfold inst_aexpr; cases a <;> simp; rename_i idx; exact sub_full idx s
+theorem sub_full (idx: τ ∈ₗ π) (s: Inst π []) : s _ idx = AValue (inst_value idx s) := by
+  unfold inst_value; cases' s τ idx with _ _ h3; simp_all; exact Member.no_member_empty h3; simp_all
+
+@[simp]
+theorem inst_aexpr_full (a: AExpr π τ) (s: Inst π []) : inst_aexpr s a = AValue (inst_aexpr_value s a) := by
+  unfold inst_aexpr inst_aexpr_value; cases a <;> simp; rename_i idx; rw [sub_full idx s]; simp_all
 
 theorem inst_aexprs_full (as: HList (AExpr π) π') (s: Inst π []) : ∃vs, HList.map (inst_aexpr s) as = HList.map AValue vs := by
   unfold inst_aexpr; induction as with
@@ -104,6 +112,25 @@ theorem inst_id : inst_expr id_inst e = e
           rename_i a_3 a_4; clear a_3;
           induction a_4; aesop; unfold HList.map; aesop)
       (by intros; unfold inst_expr inst_aexpr id_inst; aesop)
+
+@[simp] theorem inst_expr_atomic (S: Inst π π') (a: AExpr π τ)
+  : inst_expr S (Atomic a : Expr Γ π τ) = Atomic (inst_aexpr S a) := by unfold inst_expr; rfl
+@[simp] theorem inst_expr_fst (S: Inst π π') (a: AExpr π (τ₁ :×: τ₂))
+  : inst_expr S (Fst a : Expr Γ π τ₁) = Fst (inst_aexpr S a) := by unfold inst_expr; rfl
+@[simp] theorem inst_expr_snd (S: Inst π π') (a: AExpr π (τ₁ :×: τ₂))
+  : inst_expr S (Snd a : Expr Γ π τ₂) = Snd (inst_aexpr S a) := by unfold inst_expr; rfl
+@[simp] theorem inst_expr_pair (S: Inst π π') (a₁: AExpr π τ₁) (a₂: AExpr π τ₂)
+  : inst_expr S (Pair a₁ a₂ : Expr Γ π (τ₁ :×: τ₂)) = Pair (inst_aexpr S a₁) (inst_aexpr S a₂) := by unfold inst_expr; rfl
+@[simp] theorem inst_expr_flip (S: Inst π π')
+  : inst_expr S (Flip r : Expr Γ π 𝔹) = Flip r := by unfold inst_expr; rfl
+@[simp] theorem inst_expr_observe (S: Inst π π') (a: AExpr π 𝔹)
+  : inst_expr S (Observe a : Expr Γ π 𝔹) = Observe (inst_aexpr S a) := by unfold inst_expr; rfl
+@[simp] theorem inst_expr_ifte (S: Inst π π') (a: AExpr π 𝔹) (e₁: Expr Γ π τ) (e₂: Expr Γ π τ)
+  : inst_expr S (Ifte a e₁ e₂ : Expr Γ π τ) = Ifte (inst_aexpr S a) (inst_expr S e₁) (inst_expr S e₂) := by (conv_lhs => unfold inst_expr)
+@[simp] theorem inst_expr_let (S: Inst π π') (e₁: Expr Γ π τ₁) (e₂: Expr Γ (τ₁::π) τ)
+  : inst_expr S (Let e₁ e₂ : Expr Γ π τ) = Let (inst_expr S e₁) (inst_expr (shift_inst S) e₂) := by (conv_lhs => unfold inst_expr)
+@[simp] theorem inst_expr_call (S: Inst π π') (f: Member (π'', τ) Γ) (as: (AExpr π)[π'']ₕ)
+  : inst_expr S (Call f as : Expr Γ π τ) = Call f (as.map (inst_aexpr S)) := by (conv_lhs => unfold inst_expr)
 
 theorem inst_compose' (i: Value τ₁) (S: Inst π π') (e: Expr Γ π'' τ₂):
   ∀(h : π'' = (τ₁:: π : [Ty]')),

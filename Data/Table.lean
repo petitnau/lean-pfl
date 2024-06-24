@@ -1,6 +1,6 @@
 import Dice.Ast
 import Data.HList
-import Data.PDistribution
+import Data.PSemiDistribution
 import Mathlib.Topology.UnitInterval
 import Mathlib.Order.Lattice
 import Mathlib.Order.CompleteLatticeIntervals

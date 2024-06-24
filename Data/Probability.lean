@@ -402,14 +402,21 @@ theorem sub_zero : ∀(a: Probability), a - 0 = a := by
 
 theorem sSup_mul'' [CompleteLattice α]
   (X: Set α) (neX: Set.Nonempty X)
-  (cX: IsChain (· < ·) X) (f: α -> ℙ) (mf: Monotone f) (g: α -> ℙ) (mg: Monotone g)
+  (cX: IsChain (· ≤ ·) X) (f: α -> ℙ) (mf: Monotone f) (g: α -> ℙ) (mg: Monotone g)
   : sSup ((f * g) '' X) = sSup (f '' X) * sSup (g '' X) := by
   rw [eq_ext, DReal.eq_ext]; simp_all
   apply Real.sSup_mul''; all_goals aesop
 
+theorem sInf_mul'' [CompleteLattice α]
+  (X: Set α) (neX: Set.Nonempty X)
+  (cX: IsChain (· ≤ ·) X) (f: α -> ℙ) (mf: Monotone f) (g: α -> ℙ) (mg: Monotone g)
+  : sInf ((f * g) '' X) = sInf (f '' X) * sInf (g '' X) := by
+  rw [eq_ext, DReal.eq_ext]; simp_all
+  apply Real.sInf_mul''; all_goals aesop
+
 theorem sSup_add'' [CompleteLattice α]
   (X: Set α) (neX: Set.Nonempty X)
-  (cX: IsChain (· < ·) X) (f: α -> ℙ) (mf: Monotone f) (g: α -> ℙ) (mg: Monotone g)
+  (cX: IsChain (· ≤ ·) X) (f: α -> ℙ) (mf: Monotone f) (g: α -> ℙ) (mg: Monotone g)
   : sSup ((f + g) '' X) = sSup (f '' X) + sSup (g '' X) := by
   rw [eq_ext, DReal.eq_ext]; simp_all
   let f1 := λx => (f x).toDReal.toReal
@@ -421,10 +428,24 @@ theorem sSup_add'' [CompleteLattice α]
   have : {x | ∃ a ∈ X, min 1 ((f a).toDReal.toReal + (g a).toDReal.toReal) = x} = {min 1 x | x ∈ (f1 + g1) '' X} := by aesop
   rw [this]; apply Real.sSup_mina'; apply Monotone.map_bddAbove; apply Monotone.add; all_goals aesop;
 
+theorem sInf_add'' [CompleteLattice α]
+  (X: Set α) (neX: Set.Nonempty X)
+  (cX: IsChain (· ≤ ·) X) (f: α -> ℙ) (mf: Monotone f) (g: α -> ℙ) (mg: Monotone g)
+  : sInf ((f + g) '' X) = sInf (f '' X) + sInf (g '' X) := by
+  rw [eq_ext, DReal.eq_ext]; simp_all
+  let f1 := λx => (f x).toDReal.toReal
+  let g1 := λx => (g x).toDReal.toReal
+  have := Real.sInf_add'' X neX cX f1 ?_ g1 ?_
+  have fe : {x | ∃ a ∈ X, (f a).toDReal.toReal = x} = f1 '' X := by aesop
+  have ge : {x | ∃ a ∈ X, (g a).toDReal.toReal = x} = g1 '' X := by aesop
+  conv_rhs => rhs; rw [fe, ge, ← this]
+  have : {x | ∃ a ∈ X, min 1 ((f a).toDReal.toReal + (g a).toDReal.toReal) = x} = {min 1 x | x ∈ (f1 + g1) '' X} := by aesop
+  rw [this]; apply Real.sInf_mina'; apply Monotone.map_bddBelow; apply Monotone.add; all_goals aesop;
+
 open Classical in
 theorem sSup_summation [Preorder β] [CompleteLattice α]
   (X: Set α) (neX: Set.Nonempty X)
-  (cX: IsChain (· < ·) X) (f: β → α → ℙ) (mf: ∀b x y, x ≤ y → f b x ≤ f b y) (B: Finset β)
+  (cX: IsChain (· ≤ ·) X) (f: β → α → ℙ) (mf: ∀b x y, x ≤ y → f b x ≤ f b y) (B: Finset β)
   : ∑b ∈ B, (sSup {f b x | x ∈ X}) = sSup {∑b ∈ B, f b x | x ∈ X} := by
   have : Nonempty X := by aesop
   apply @Finset.induction_on _ _ _ B _ _
@@ -433,6 +454,20 @@ theorem sSup_summation [Preorder β] [CompleteLattice α]
     rw [Finset.sum_insert ans, ih];
     (conv_rhs => congr; ext; congr; ext; congr; ext; rw [Finset.sum_insert ans]);
     symm; apply sSup_add''; all_goals aesop;
+    . intro x y xy; simp_all;apply Finset.sum_le_sum; intro i _; apply mf i; assumption
+
+open Classical in
+theorem sInf_summation [Preorder β] [CompleteLattice α]
+  (X: Set α) (neX: Set.Nonempty X)
+  (cX: IsChain (· ≤ ·) X) (f: β → α → ℙ) (mf: ∀b x y, x ≤ y → f b x ≤ f b y) (B: Finset β)
+  : ∑b ∈ B, (sInf {f b x | x ∈ X}) = sInf {∑b ∈ B, f b x | x ∈ X} := by
+  have : Nonempty X := by aesop
+  apply @Finset.induction_on _ _ _ B _ _
+  . aesop
+  . intro a s ans ih
+    rw [Finset.sum_insert ans, ih];
+    (conv_rhs => congr; ext; congr; ext; congr; ext; rw [Finset.sum_insert ans]);
+    symm; apply sInf_add''; all_goals aesop;
     . intro x y xy; simp_all;apply Finset.sum_le_sum; intro i _; apply mf i; assumption
 
 

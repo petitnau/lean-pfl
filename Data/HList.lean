@@ -55,6 +55,9 @@ end List
 inductive HList {α : Type v} (β : α -> Type u) : List α -> Type (max u v)
   | nil  : HList β []
   | cons : β i -> HList β is -> HList β (i::is)
+
+abbrev HList.cons' (i: α) : β i -> HList β is -> HList β (i::is) := @HList.cons _ _ i _
+
 notation τ "[" l "]ₕ " => HList τ l
 infixr:67 " ::ₕ " => HList.cons
 notation " [""]ₕ " => HList.nil

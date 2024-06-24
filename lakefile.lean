@@ -20,3 +20,4 @@ lean_lib Dice {
 }
 
 lean_lib Data {}
+lean_lib Math {}
